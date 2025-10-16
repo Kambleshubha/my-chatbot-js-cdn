@@ -20,10 +20,10 @@
         try {
             const parsedSuggestions = JSON.parse(suggestionsJson);
             // Ensure the parsed value is an array
-            if (Array.isArray(parsedSuggestions)) {
+            if (Array.isArray(parsedSuggestions) && parsedSuggestions.every(s => typeof s === 'string')) {
                 predefinedSuggestions = parsedSuggestions;
             } else {
-                console.warn("Chatbot: 'data-suggestions' attribute is not a valid JSON array. Using default suggestions.");
+                console.warn("Chatbot: 'data-suggestions' attribute is not a valid JSON array of strings. Using default suggestions.");
             }
         } catch (e) {
             console.error("Chatbot: Error parsing 'data-suggestions' JSON:", e);
@@ -45,8 +45,6 @@
 
 
     // --- CSS Styles (as a single string) ---
-    // This CSS will be injected into the client's page's <head> section.
-    // Each rule is now prefixed with '#chatbot-root-container' for higher specificity.
     const chatbotStyles = `
         :root {
             --primary-color: #6C5CE7; /* Purple */
@@ -70,11 +68,10 @@
             border: none !important;
             text-decoration: none !important;
             line-height: 1.5 !important;
-            -webkit-font-smoothing: antialiased;
-            -moz-osx-font-smoothing: grayscale;
+            -webkit-font-smoothing: antialiased !important;
+            -moz-osx-font-smoothing: grayscale !important;
         }
         #chatbot-root-container {
-            /* Position relative to avoid interfering with client's absolute/fixed elements */
             position: relative !important; 
             z-index: 2147483647 !important; /* Max z-index to ensure chatbot is always on top */
             font-size: 16px !important; /* Base font size */
@@ -85,7 +82,7 @@
             position: fixed !important;
             bottom: 20px !important;
             right: 20px !important;
-            z-index: 1000 !important; /* Z-index within the chatbot context */
+            z-index: 1000 !important;
             display: flex !important;
             flex-direction: column !important;
             align-items: flex-end !important;
@@ -154,9 +151,9 @@
             overflow: hidden !important;
             transform: scale(0.8) !important;
             opacity: 0 !important;
-            pointer-events: none !important; /* Do not accept clicks when hidden */
+            pointer-events: none !important;
             transition: transform 0.3s ease-out, opacity 0.3s ease-out !important;
-            z-index: 1001 !important; /* Higher z-index than the icon within chatbot context */
+            z-index: 1001 !important;
         }
 
         #chatbot-root-container .chat-window.visible {
@@ -165,7 +162,7 @@
             pointer-events: auto !important;
         }
 
-        #chatbot-root-container .chat-window.hidden-display { /* Use display: none for complete hiding */
+        #chatbot-root-container .chat-window.hidden-display {
             display: none !important;
         }
 
@@ -179,43 +176,55 @@
             justify-content: space-between !important;
             border-top-left-radius: 15px !important;
             border-top-right-radius: 15px !important;
+            flex-wrap: nowrap !important; /* Prevent header content from wrapping */
         }
 
         #chatbot-root-container .chat-header .header-info {
             display: flex !important;
             align-items: center !important;
             gap: 10px !important;
-            flex-grow: 1 !important; /* Allow info to take space */
-            min-width: 0 !important; /* Allow flex item to shrink if content is long */
+            flex-grow: 1 !important;
+            min-width: 0 !important; 
         }
 
-        #chatbot-root-container .brand-logo { /* Brand Logo Styling */
+        #chatbot-root-container .brand-logo {
             width: 32px !important;
             height: 32px !important;
             border-radius: 50% !important;
             margin-right: 8px !important;
             object-fit: cover !important;
-            flex-shrink: 0 !important; /* Prevent logo from shrinking */
+            flex-shrink: 0 !important;
         }
 
         #chatbot-root-container .chat-header h2 {
             margin: 0 !important;
             font-size: 1.1em !important;
             font-weight: 600 !important;
-            white-space: nowrap !important; /* Prevent brand name from wrapping */
-            overflow: hidden !important; /* Hide overflowing text */
-            text-overflow: ellipsis !important; /* Add ellipsis for overflow */
-            flex-shrink: 1 !important; /* Allow title to shrink if needed */
-            min-width: 0 !important; /* Allow flex item to shrink */
+            white-space: nowrap !important; 
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            flex-shrink: 1 !important;
+            min-width: 0 !important; 
         }
-
+        
+        /* Adjusted online status to prevent overlap with h2 */
         #chatbot-root-container .chat-header .online-status {
             margin: 0 !important;
             font-size: 0.8em !important;
             color: rgba(255, 255, 255, 0.8) !important;
-            flex-shrink: 0 !important; /* Prevent status from shrinking */
-            margin-left: 8px !important; /* Small space after title */
+            flex-shrink: 0 !important;
+            margin-left: 0 !important; /* Removed static left margin */
         }
+        /* Add some padding to the right of the title for better separation */
+        #chatbot-root-container .chat-header .title-status {
+            display: flex !important; /* Make title-status a flex container */
+            flex-direction: column !important;
+            align-items: flex-start !important;
+            flex-grow: 1 !important;
+            min-width: 0 !important;
+            padding-right: 10px !important; /* Add padding to prevent overlap with close button */
+        }
+
 
         #chatbot-root-container .close-button {
             background: none !important;
@@ -225,7 +234,8 @@
             padding: 5px !important;
             border-radius: 5px !important;
             transition: background-color 0.2s ease !important;
-            flex-shrink: 0 !important; /* Prevent close button from shrinking */
+            flex-shrink: 0 !important;
+            margin-left: auto !important; /* Push close button to the far right */
         }
 
         #chatbot-root-container .close-button:hover {
@@ -405,7 +415,23 @@
             flex-wrap: wrap !important;
             gap: 8px !important;
             justify-content: flex-start !important;
+            /* Added transition for smooth hide/show */
+            max-height: 150px !important; /* Max height to allow scroll if many suggestions */
+            overflow-y: auto !important; /* Enable scroll if suggestions overflow */
+            opacity: 1 !important;
+            transition: max-height 0.3s ease-out, opacity 0.3s ease-out, padding 0.3s ease-out !important;
         }
+
+        /* Suggestions area when hidden - use max-height:0 and opacity:0 for smooth transition */
+        #chatbot-root-container .suggestions-area.hidden-element { 
+            max-height: 0 !important;
+            opacity: 0 !important;
+            padding-top: 0 !important;
+            padding-bottom: 0 !important;
+            border-top: none !important; /* Remove border when hidden */
+            overflow: hidden !important; /* Hide overflowing content */
+        }
+
 
         #chatbot-root-container .suggestion-button {
             background-color: rgba(255, 255, 255, 0.1) !important;
@@ -417,7 +443,7 @@
             font-size: 0.85em !important;
             transition: background-color 0.2s ease, border-color 0.2s ease !important;
             white-space: nowrap !important;
-            flex-shrink: 0 !important; /* Prevent shrinking on small screens */
+            flex-shrink: 0 !important;
         }
 
         #chatbot-root-container .suggestion-button:hover {
@@ -501,22 +527,18 @@
     `;
 
     // --- Core Chatbot JavaScript Logic ---
-    // This function orchestrates the entire chatbot initialization and functionality.
     function initializeChatbot() {
-        // Dynamically load marked.js if it's not already available on the client's page.
         if (typeof marked === 'undefined') {
             const markedScript = document.createElement('script');
             markedScript.src = 'https://cdn.jsdelivr.net/npm/marked/marked.min.js';
-            markedScript.onload = _initChatbotElements; // Initialize elements after marked.js loads
+            markedScript.onload = _initChatbotElements;
             document.head.appendChild(markedScript);
         } else {
-            _initChatbotElements(); // marked.js is already loaded, proceed directly
+            _initChatbotElements();
         }
     }
 
-    // Function to get DOM elements and set up event listeners
     function _initChatbotElements() {
-        // Get references to all necessary DOM elements
         const chatIcon = document.getElementById('chat-icon');
         const initialBubble = document.getElementById('initial-bubble');
         const chatWindow = document.getElementById('chat-window');
@@ -526,17 +548,15 @@
         const sendButton = document.getElementById('send-button');
         const suggestionsArea = document.getElementById('suggestions-area');
 
-        // Retrieve or generate a unique session ID for the user
         let sessionId = localStorage.getItem('chatbotSessionId');
         if (!sessionId) {
-            sessionId = crypto.randomUUID(); // Generate a new UUID
+            sessionId = crypto.randomUUID();
             localStorage.setItem('chatbotSessionId', sessionId);
             console.log('New Chatbot Session ID created:', sessionId);
         } else {
             console.log('Reusing Chatbot Session ID:', sessionId);
         }
 
-        // Function to append messages to the chat box UI
         function appendMessage(sender, message, isMarkdown = false, extraClass = '') {
             const messageElement = document.createElement('div');
             messageElement.classList.add('message', `${sender}-message`);
@@ -544,47 +564,47 @@
                 messageElement.classList.add(extraClass);
             }
 
-            // If it's a bot message and markdown parsing is requested, use marked.js
             if (isMarkdown && sender === 'bot' && typeof marked !== 'undefined') {
                 messageElement.innerHTML = marked.parse(message);
             } else {
-                messageElement.textContent = message; // Otherwise, use plain text
+                messageElement.textContent = message;
             }
             
             chatBox.appendChild(messageElement);
-            chatBox.scrollTop = chatBox.scrollHeight; // Scroll to the bottom of the chat
-            return messageElement; // Return element for potential future manipulation (e.g., removing typing indicator)
+            chatBox.scrollTop = chatBox.scrollHeight;
+            return messageElement;
         }
 
-        // Function to create and display suggestion buttons
         function populateSuggestions() {
-            suggestionsArea.innerHTML = ''; // Clear any existing suggestions
+            suggestionsArea.innerHTML = '';
             predefinedSuggestions.forEach(suggestionText => {
                 const button = document.createElement('button');
                 button.classList.add('suggestion-button');
                 button.textContent = suggestionText;
                 button.addEventListener('click', () => {
-                    userInput.value = suggestionText; // Set input value to suggestion
-                    sendMessage(); // Send the suggestion as a message
+                    userInput.value = suggestionText;
+                    sendMessage();
                 });
                 suggestionsArea.appendChild(button);
             });
+            // Ensure suggestions are visible when populated
+            suggestionsArea.classList.remove('hidden-element');
         }
 
-        // Function to send user messages to the N8n webhook
         async function sendMessage() {
             const userMessage = userInput.value.trim();
 
             if (userMessage === '') {
-                return; // Do nothing if the message is empty
+                return;
             }
 
-            suggestionsArea.classList.add('hidden-element'); // Hide suggestions after a message is sent
+            // Hide suggestions area smoothly when a message is sent
+            suggestionsArea.classList.add('hidden-element'); 
 
-            appendMessage('user', userMessage); // Display user's message in the chat
-            userInput.value = ''; // Clear the input field
+            appendMessage('user', userMessage);
+            userInput.value = '';
 
-            const typingIndicator = appendMessage('bot', 'Typing...', false, 'typing-indicator'); // Show typing indicator
+            const typingIndicator = appendMessage('bot', 'Typing...', false, 'typing-indicator');
 
             try {
                 const response = await fetch(N8N_WEBHOOK_URL, {
@@ -594,72 +614,89 @@
                     },
                     body: JSON.stringify({ 
                         message: userMessage, 
-                        sessionId: sessionId // Send the session ID with each message
+                        sessionId: sessionId 
                     }), 
                 });
 
                 if (!response.ok) {
-                    // Throw an error if HTTP status is not 2xx
                     throw new Error(`HTTP error! Status: ${response.status} - ${response.statusText}`);
                 }
 
-                const data = await response.json(); // Parse the JSON response from N8n
+                const data = await response.json();
 
-                typingIndicator.remove(); // Remove the typing indicator
+                typingIndicator.remove();
 
-                const botReply = data.reply || "Sorry, I'm having trouble responding right now.";
-                appendMessage('bot', botReply, true); // Display bot's reply (assuming Markdown)
+                const botReply = data.output || "Sorry, I'm having trouble responding right now.";
+                appendMessage('bot', botReply, true);
+
+                // Re-populate and show suggestions after bot replies, unless there's an error
+                if (predefinedSuggestions.length > 0) {
+                   populateSuggestions(); // This call will remove hidden-element class
+                }
 
             } catch (error) {
                 console.error('Error communicating with N8n webhook:', error);
                 if (typingIndicator.parentNode) {
-                    typingIndicator.remove(); // Remove typing indicator even on error
+                    typingIndicator.remove();
                 }
                 appendMessage('bot', 'Sorry, there was an issue processing your request. Please try again later.', false, 'error-message');
-                suggestionsArea.classList.remove('hidden-element'); // Show suggestions again for retry
+                // Show suggestions immediately if an error occurs, so user can try again
+                suggestionsArea.classList.remove('hidden-element'); 
             }
         }
 
         // --- UI Interactions ---
-        // Function to open the chat window
         function openChat() {
-            chatWindow.classList.remove('hidden-display'); // Make chat window visible
+            chatWindow.classList.remove('hidden-display');
             chatWindow.classList.add('visible');
             initialBubble.classList.remove('visible');
-            initialBubble.classList.add('hidden-element'); // Hide initial bubble
-            chatIcon.classList.add('hidden-element'); // Hide chat icon
+            initialBubble.classList.add('hidden-element');
+            chatIcon.classList.add('hidden-element');
 
-            // Only display initial bot message and populate suggestions if chat history is empty
-            // Check if chatBox has no children OR if it only contains the very first bot message
             if (chatBox.children.length === 0 || (chatBox.children.length === 1 && chatBox.children[0].classList.contains('bot-message'))) { 
-                if (chatBox.children.length === 0) { // Only append if truly empty
+                if (chatBox.children.length === 0) {
                     appendMessage('bot', initialBotWelcomeMessage, false);
                 }
-                populateSuggestions();
-                suggestionsArea.classList.remove('hidden-element'); // Ensure suggestions are visible
+                if (predefinedSuggestions.length > 0) {
+                    populateSuggestions();
+                }
             } else {
-                // If there's existing conversation, just make sure suggestions are visible
-                suggestionsArea.classList.remove('hidden-element'); 
+                // If there's existing conversation, check if suggestions were explicitly hidden.
+                // For now, let's always show them if available when chat is opened
+                if (predefinedSuggestions.length > 0) {
+                    suggestionsArea.classList.remove('hidden-element');
+                }
             }
 
-            userInput.focus(); // Focus on the input field
-            chatBox.scrollTop = chatBox.scrollHeight; // Scroll to the bottom
+            userInput.focus();
+            chatBox.scrollTop = chatBox.scrollHeight;
         }
 
-        // Function to close the chat window
         function closeChat() {
             chatWindow.classList.remove('visible');
-            chatWindow.classList.add('hidden-display'); // Completely hide chat window
-            chatIcon.classList.remove('hidden-element'); // Show chat icon again
-            suggestionsArea.classList.add('hidden-element'); // Hide suggestions when chat is closed
-            // Show the initial bubble after a short delay
+            chatWindow.classList.add('hidden-display');
+            chatIcon.classList.remove('hidden-element');
+            // Ensure suggestions are hidden when chat closes
+            suggestionsArea.classList.add('hidden-element'); 
             setTimeout(() => {
                 initialBubble.classList.remove('hidden-element');
                 initialBubble.classList.add('visible');
             }, 500); 
         }
 
-        // Attach event listeners to UI elements
+        // New: Hide suggestions when user starts typing
+        userInput.addEventListener('input', () => {
+            if (userInput.value.trim().length > 0) {
+                suggestionsArea.classList.add('hidden-element');
+            } else {
+                // Show suggestions again if user clears the input field
+                if (predefinedSuggestions.length > 0) {
+                    suggestionsArea.classList.remove('hidden-element');
+                }
+            }
+        });
+
+
         chatIcon.addEventListener('click', openChat);
         initialBubble.addEventListener('click', openChat);
         closeChatButton.addEventListener('click', closeChat);
@@ -670,7 +707,6 @@
             }
         });
 
-        // Show the initial bubble after a delay on initial script load
         setTimeout(() => {
             initialBubble.classList.remove('hidden-element');
             initialBubble.classList.add('visible');
@@ -679,18 +715,15 @@
 
     // --- Inject styles and HTML into the client's page ---
 
-    // Create a <style> tag and inject all chatbot CSS
     const styleTag = document.createElement('style');
     styleTag.textContent = chatbotStyles;
     document.head.appendChild(styleTag);
 
-    // Create a root <div> for the chatbot and inject all HTML
     const chatbotRootContainer = document.createElement('div');
-    chatbotRootContainer.id = 'chatbot-root-container'; // Unique ID for encapsulation
+    chatbotRootContainer.id = 'chatbot-root-container';
     chatbotRootContainer.innerHTML = chatbotHTML;
     document.body.appendChild(chatbotRootContainer);
 
-    // Finally, initialize the chatbot logic after DOM elements are available
     initializeChatbot();
 
 })(); // End of IIFE
