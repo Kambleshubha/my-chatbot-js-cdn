@@ -1,4 +1,4 @@
-(function() { // IIFE (Immediately Invoked Function Expression) to prevent global scope pollution
+(function() { // IIFE (Immediately Invoked Function Expression) to prevent global scope pollutionjs10
 
     // --- Configuration (Client-specific, read from script tag data attributes) ---
     const currentScript = document.currentScript;
